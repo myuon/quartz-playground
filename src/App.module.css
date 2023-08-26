@@ -8,6 +8,7 @@
 .codeArea {
   display: grid;
   gap: 16px;
+  overflow-x: scroll;
 
   textarea {
     width: 100%;
