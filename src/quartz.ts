@@ -107,8 +107,9 @@ export const loadQuartz = async (input: string) => {
           next_fd++;
         },
         fd_close(fd: number) {
-          console.log(`[fd_close] fd=${fd}`);
-          throw new Error("todo");
+          delete fds[fd];
+
+          return 0;
         },
         fd_read(fd: number, iovs: number, iovs_len: number, nread: number) {
           const mem = getMemoryView();
@@ -119,7 +120,18 @@ export const loadQuartz = async (input: string) => {
 
           const address = mem.getUint32(iovs, true);
           const length = mem.getUint32(iovs + 4, true);
-          console.log(address, length);
+
+          const read = fs.readFileSync(fds[fd].path);
+          if (read instanceof Uint8Array) {
+            for (let i = 0; i < length; i++) {
+              mem.setUint8(address + i, read[i]);
+            }
+
+            mem.setInt32(nread, length, true);
+
+            return 0;
+          }
+
           throw new Error("todo");
         },
         fd_filestat_get(fd: number, buf: number) {
