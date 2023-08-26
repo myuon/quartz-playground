@@ -29,6 +29,8 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
-    "firebase": "^10.3.0"
+    "firebase": "^10.3.0",
+    "memfs": "^4.2.1",
+    "node-polyfill-webpack-plugin": "^2.0.1"
   }
 }
