@@ -2,7 +2,8 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
 import { fs } from "memfs";
 
-const args = ["run", "input.qz"];
+// WHY??
+const args = ["", "", "quartz", "compile", "-o", "output.qz", "input.qz"];
 let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
@@ -104,18 +105,24 @@ export const loadQuartz = async (input: string) => {
         args_sizes_get(argc: number, argv_buf_size: number) {
           const mem = getMemoryView();
           mem.setUint32(argc, args.length, true);
-          mem.setUint32(argv_buf_size, args.join(" ").length, true);
+          mem.setUint32(
+            argv_buf_size,
+            args.map((c) => c.length + 1).reduce((p, c) => p + c, 0),
+            true
+          );
         },
         args_get(argv: number, argv_buf: number) {
           const mem = getMemoryView();
           let position = 0;
           args.forEach((arg, i) => {
             const data = new TextEncoder().encode(arg);
+
             for (let i = 0; i < data.length; i++) {
               mem.setUint8(argv_buf + position + i, data[i]);
             }
+            mem.setUint8(argv_buf + position + data.length, 0);
 
-            position += data.length;
+            position += data.length + 1;
             mem.setUint32(argv + i * 4, argv_buf + position, true);
           });
         },
