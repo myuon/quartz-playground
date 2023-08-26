@@ -1,12 +1,15 @@
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
+import { fs } from "memfs";
 
-const args = [];
-let memory = new WebAssembly.Memory({ initial: 1 });
+const args = ["run", "input.qz"];
+let memory = undefined as unknown as WebAssembly.Memory;
 let stdout = "";
 let stderr = "";
 
-export const initQuartz = async () => {
+export const loadQuartz = async (input: string) => {
+  fs.writeFileSync("input.qz", input);
+
   const instance = await WebAssembly.instantiateStreaming(
     fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.2.0.wasm"))),
     {
@@ -95,14 +98,26 @@ export const initQuartz = async () => {
           throw new Error("todo");
         },
         args_sizes_get(argc: number, argv_buf_size: number) {
-          console.log(
-            `[args_sizes_get] argc=${argc} argv_buf_size=${argv_buf_size}`
+          const mem = new DataView(
+            (instance.instance.exports.memory as WebAssembly.Memory).buffer
           );
-
-          new DataView(memory.buffer).setInt32(argv_buf_size, 0);
+          mem.setUint32(argc, args.length, true);
+          mem.setUint32(argv_buf_size, args.join(" ").length, true);
         },
         args_get(argv: number, argv_buf: number) {
-          console.log(`[args_get] argv=${argv} argv_buf=${argv_buf}`);
+          const mem = new DataView(
+            (instance.instance.exports.memory as WebAssembly.Memory).buffer
+          );
+          let position = 0;
+          args.forEach((arg, i) => {
+            const data = new TextEncoder().encode(arg);
+            for (let i = 0; i < data.length; i++) {
+              mem.setUint8(argv_buf + position + i, data[i]);
+            }
+
+            position += data.length;
+            mem.setUint32(argv + i * 4, argv_buf + position, true);
+          });
         },
       },
     }
