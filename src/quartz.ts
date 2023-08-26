@@ -239,13 +239,15 @@ export const loadQuartz = async (input: string) => {
   try {
     main();
   } catch (err) {
+    stderr += `\nError: ${err}`;
     console.error(err);
   }
 
-  if (stdout) {
-    console.log(stdout);
-  }
-  if (stderr) {
-    console.error(stderr);
-  }
+  return {
+    stdout,
+    stderr,
+    compiled: new TextDecoder().decode(
+      fs.readFileSync("output.wat") as Uint8Array
+    ),
+  };
 };

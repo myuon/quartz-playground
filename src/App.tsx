@@ -8,6 +8,9 @@ const defaultCode = `fun main() {
 
 export const App = () => {
   const [loading, setLoading] = useState(false);
+  const [stdout, setStdout] = useState("");
+  const [stderr, setStderr] = useState("");
+  const [code, setCode] = useState("");
 
   return (
     <main className={styles.main}>
@@ -21,9 +24,17 @@ export const App = () => {
           const formData = new FormData(event.currentTarget);
           const input = formData.get("code") as string;
 
-          await loadQuartz(input);
+          const {
+            stdout: newStdout,
+            stderr: newStderr,
+            compiled,
+          } = await loadQuartz(input);
 
           setLoading(false);
+
+          setStdout(newStdout);
+          setStderr(newStderr);
+          setCode(compiled);
         }}
         className={styles.codeArea}
       >
@@ -40,6 +51,27 @@ export const App = () => {
           </button>
         </div>
       </form>
+
+      {stdout && (
+        <pre className={styles.outputArea}>
+          <p>Stdout:</p>
+          <code>{stdout}</code>
+        </pre>
+      )}
+
+      {stderr && (
+        <pre className={styles.outputArea}>
+          <p>Stderr:</p>
+          <code>{stderr}</code>
+        </pre>
+      )}
+
+      {code && (
+        <pre className={styles.outputArea}>
+          <p>Compiled:</p>
+          <code>{code}</code>
+        </pre>
+      )}
     </main>
   );
 };
