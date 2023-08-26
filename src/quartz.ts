@@ -3,14 +3,18 @@ import { storage } from "./firebase";
 import { fs } from "memfs";
 
 const args = ["run", "input.qz"];
-let memory = undefined as unknown as WebAssembly.Memory;
+let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
+
+const getMemoryView = () => {
+  return new DataView((instance.exports.memory as WebAssembly.Memory).buffer);
+};
 
 export const loadQuartz = async (input: string) => {
   fs.writeFileSync("input.qz", input);
 
-  const instance = await WebAssembly.instantiateStreaming(
+  const result = await WebAssembly.instantiateStreaming(
     fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.2.0.wasm"))),
     {
       env: {
@@ -38,12 +42,12 @@ export const loadQuartz = async (input: string) => {
             );
           }
 
-          const mem = new DataView(memory.buffer);
+          const mem = getMemoryView();
 
           const address = mem.getUint32(ciovs, true);
           const length = mem.getUint32(ciovs + 4, true);
 
-          const data = new Uint8Array(memory.buffer, address, length);
+          const data = new Uint8Array(mem.buffer, address, length);
 
           if (fd === 1) {
             stdout += new TextDecoder().decode(data);
@@ -98,16 +102,12 @@ export const loadQuartz = async (input: string) => {
           throw new Error("todo");
         },
         args_sizes_get(argc: number, argv_buf_size: number) {
-          const mem = new DataView(
-            (instance.instance.exports.memory as WebAssembly.Memory).buffer
-          );
+          const mem = getMemoryView();
           mem.setUint32(argc, args.length, true);
           mem.setUint32(argv_buf_size, args.join(" ").length, true);
         },
         args_get(argv: number, argv_buf: number) {
-          const mem = new DataView(
-            (instance.instance.exports.memory as WebAssembly.Memory).buffer
-          );
+          const mem = getMemoryView();
           let position = 0;
           args.forEach((arg, i) => {
             const data = new TextEncoder().encode(arg);
@@ -122,15 +122,19 @@ export const loadQuartz = async (input: string) => {
       },
     }
   );
-  memory = instance.instance.exports.memory as WebAssembly.Memory;
+  instance = result.instance;
 
-  const main = instance.instance.exports.main as CallableFunction;
+  const main = instance.exports.main as CallableFunction;
   try {
     main();
   } catch (err) {
     console.error(err);
   }
 
-  console.log(stdout);
-  console.error(stderr);
+  if (stdout) {
+    console.log(stdout);
+  }
+  if (stderr) {
+    console.error(stderr);
+  }
 };
