@@ -6,6 +6,8 @@ console.log("initialized!");
 
 const args = [];
 let memory = new WebAssembly.Memory({ initial: 1 });
+let stdout = "";
+let stderr = "";
 
 void (async () => {
   const instance = await WebAssembly.instantiateStreaming(
@@ -24,30 +26,33 @@ void (async () => {
         },
       },
       wasi_unstable: {
-        fd_write(fd: number, iovs: number, iovs_len: number, nwritten: number) {
-          console.log(
-            `[fd_write] fd=${fd} iovs=${iovs} iovs_len=${iovs_len} nwritten=${nwritten}`
-          );
+        fd_write(
+          fd: number,
+          ciovs: number,
+          ciovs_len: number,
+          nwritten: number
+        ) {
+          if (ciovs_len !== 1) {
+            throw new Error(
+              `[fd_write] ciovs_len=${ciovs_len} is not supported.`
+            );
+          }
+
+          const mem = new DataView(memory.buffer);
+
+          const address = mem.getUint32(ciovs, true);
+          const length = mem.getUint32(ciovs + 4, true);
+
+          const data = new Uint8Array(memory.buffer, address, length);
 
           if (fd === 1) {
-            console.log(
-              new TextDecoder().decode(
-                new Uint8Array(memory.buffer, iovs, iovs_len)
-              )
-            );
+            stdout += new TextDecoder().decode(data);
+            mem.setInt32(nwritten, length, true);
           } else if (fd === 2) {
-            console.error(
-              new TextDecoder().decode(
-                new Uint8Array(memory.buffer, iovs, iovs_len)
-              )
-            );
+            stderr += new TextDecoder().decode(data);
+            mem.setInt32(nwritten, length, true);
           } else {
-            fs.writeSync(
-              fd,
-              new Uint8Array(memory.buffer, iovs, iovs_len),
-              0,
-              iovs_len
-            );
+            throw new Error(`[fd_write] fd=${fd} is not supported.`);
           }
         },
         path_open(
@@ -108,5 +113,12 @@ void (async () => {
   memory = instance.instance.exports.memory as WebAssembly.Memory;
 
   const main = instance.instance.exports.main as CallableFunction;
-  main();
+  try {
+    main();
+  } catch (err) {
+    console.error(err);
+  }
+
+  console.log(stdout);
+  console.error(stderr);
 })();
