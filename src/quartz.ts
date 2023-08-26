@@ -6,7 +6,7 @@ const compilerRef = ref(storage, "quartz/quartz-2.3.0.wasm");
 const stdRef = ref(storage, "quartz/std.qz");
 const coreRef = ref(storage, "quartz/core.qz");
 
-const args = ["quartz", "compile", "-o", "output.wat", "input.qz"];
+let args: string[] = [];
 let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
@@ -215,6 +215,9 @@ export const loadQuartz = async (input: string) => {
     },
   };
 
+  args = ["quartz", "compile", "-o", "output.wat", "input.qz"];
+  stdout = "";
+  stderr = "";
   const result = await WebAssembly.instantiateStreaming(
     fetch(await getDownloadURL(compilerRef)),
     importObject
@@ -237,10 +240,12 @@ export const loadQuartz = async (input: string) => {
   );
   const compiledWasm = wat2wasm(compiled);
 
-  const exectedResult = await WebAssembly.instantiate(compiledWasm, {
+  args = [];
+  const executedResult = await WebAssembly.instantiate(compiledWasm, {
     ...importObject,
   });
-  const exectedMain = exectedResult.instance.exports.main as CallableFunction;
+  instance = executedResult.instance;
+  const exectedMain = executedResult.instance.exports.main as CallableFunction;
   try {
     exectedMain();
   } catch (err) {
