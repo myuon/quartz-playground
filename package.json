@@ -20,17 +20,25 @@
   },
   "homepage": "https://github.com/myuon/quartz-playground#readme",
   "devDependencies": {
+    "@babel/core": "^7.22.11",
+    "@babel/preset-env": "^7.22.10",
+    "@babel/preset-typescript": "^7.22.11",
+    "babel-loader": "^9.1.3",
+    "css-loader": "^6.8.1",
     "html-webpack-plugin": "^5.5.3",
+    "style-loader": "^3.3.3",
     "superstatic": "^9.0.3",
-    "ts-loader": "^9.4.4",
     "typescript": "^5.2.2",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
+    "@babel/preset-react": "^7.22.5",
     "firebase": "^10.3.0",
     "memfs": "^4.2.1",
-    "node-polyfill-webpack-plugin": "^2.0.1"
+    "modern-css-reset": "^1.4.0",
+    "node-polyfill-webpack-plugin": "^2.0.1",
+    "preact": "^10.17.1"
   }
 }

@@ -10,13 +10,36 @@ const mode = process.env.NODE_ENV || "development";
  */
 module.exports = {
   mode,
-  entry: "./src/index.ts",
+  entry: "./src/index.tsx",
   module: {
     rules: [
       {
-        test: /\.tsx?$/,
-        use: "ts-loader",
+        test: /\.(tsx?|jsx)$/,
         exclude: /node_modules/,
+        use: {
+          loader: "babel-loader",
+          options: {
+            presets: [
+              ["@babel/env"],
+              [
+                "@babel/typescript",
+                {
+                  jsxPragma: "h",
+                },
+              ],
+              [
+                "@babel/react",
+                {
+                  pragma: "h",
+                },
+              ],
+            ],
+          },
+        },
+      },
+      {
+        test: /\.css$/i,
+        use: ["style-loader", "css-loader"],
       },
     ],
   },
@@ -37,6 +60,9 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: "./public/index.html",
+    }),
+    new webpack.ProvidePlugin({
+      h: ["preact", "h"],
     }),
     new NodePolyfillPlugin(),
   ],

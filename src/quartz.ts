@@ -1,15 +1,12 @@
 import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
-import { fs } from "memfs";
-
-console.log("initialized!");
 
 const args = [];
 let memory = new WebAssembly.Memory({ initial: 1 });
 let stdout = "";
 let stderr = "";
 
-void (async () => {
+export const initQuartz = async () => {
   const instance = await WebAssembly.instantiateStreaming(
     fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.2.0.wasm"))),
     {
@@ -121,4 +118,4 @@ void (async () => {
 
   console.log(stdout);
   console.error(stderr);
-})();
+};
