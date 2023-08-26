@@ -2,17 +2,21 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
 import { fs } from "memfs";
 
+const compilerRef = ref(storage, "quartz/quartz-2.3.0.wasm");
+const stdRef = ref(storage, "quartz/std.qz");
+const coreRef = ref(storage, "quartz/core.qz");
+
 // WHY??
-const args = ["quartz", "compile", "-o", "output.qz", "input.qz"];
+const args = ["quartz", "compile", "-o", "output.wat", "input.qz"];
 let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
 
-let next_fd = 4;
+let next_fd = 3;
 let fds = {
+  0: {},
   1: {},
   2: {},
-  3: {},
 } as Record<
   number,
   {
@@ -32,9 +36,18 @@ const getMemoryView = () => {
 
 export const loadQuartz = async (input: string) => {
   fs.writeFileSync("input.qz", input);
+  fs.mkdirSync("quartz");
+  fs.writeFileSync(
+    "quartz/core.qz",
+    await (await fetch(await getDownloadURL(coreRef))).text()
+  );
+  fs.writeFileSync(
+    "quartz/std.qz",
+    await (await fetch(await getDownloadURL(stdRef))).text()
+  );
 
   const result = await WebAssembly.instantiateStreaming(
-    fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.3.0.wasm"))),
+    fetch(await getDownloadURL(compilerRef)),
     {
       env: {
         debug(arg: unknown) {
@@ -68,14 +81,21 @@ export const loadQuartz = async (input: string) => {
 
           const data = new Uint8Array(mem.buffer, address, length);
 
-          if (fd === 1) {
+          if (fd === 0) {
+            throw new Error(`[fd_write] fd=${fd} is not supported.`);
+          } else if (fd === 1) {
             stdout += new TextDecoder().decode(data);
             mem.setInt32(nwritten, length, true);
           } else if (fd === 2) {
             stderr += new TextDecoder().decode(data);
             mem.setInt32(nwritten, length, true);
           } else {
-            throw new Error(`[fd_write] fd=${fd} is not supported.`);
+            const path = fds[fd].path;
+            if (!path) {
+              throw new Error(`[fd_write] ${path} is not found.`);
+            }
+
+            fs.writeFileSync(path, data);
           }
         },
         path_open(
@@ -112,11 +132,11 @@ export const loadQuartz = async (input: string) => {
           return 0;
         },
         fd_read(fd: number, iovs: number, iovs_len: number, nread: number) {
-          const mem = getMemoryView();
+          if (iovs_len !== 1) {
+            throw new Error(`[fd_read] iovs_len=${iovs_len} is not supported.`);
+          }
 
-          console.log(
-            `[fd_read] fd=${fd} iovs=${iovs} iovs_len=${iovs_len} nread=${nread}`
-          );
+          const mem = getMemoryView();
 
           const address = mem.getUint32(iovs, true);
           const length = mem.getUint32(iovs + 4, true);
