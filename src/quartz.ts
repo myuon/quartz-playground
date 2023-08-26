@@ -3,7 +3,7 @@ import { storage } from "./firebase";
 import { fs } from "memfs";
 
 // WHY??
-const args = ["", "", "quartz", "compile", "-o", "output.qz", "input.qz"];
+const args = ["quartz", "compile", "-o", "output.qz", "input.qz"];
 let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
@@ -16,7 +16,7 @@ export const loadQuartz = async (input: string) => {
   fs.writeFileSync("input.qz", input);
 
   const result = await WebAssembly.instantiateStreaming(
-    fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.2.0.wasm"))),
+    fetch(await getDownloadURL(ref(storage, "quartz/quartz-2.3.0.wasm"))),
     {
       env: {
         debug(arg: unknown) {
@@ -113,6 +113,8 @@ export const loadQuartz = async (input: string) => {
         },
         args_get(argv: number, argv_buf: number) {
           const mem = getMemoryView();
+          mem.setUint32(argv, argv_buf, true);
+
           let position = 0;
           args.forEach((arg, i) => {
             const data = new TextEncoder().encode(arg);
@@ -123,7 +125,7 @@ export const loadQuartz = async (input: string) => {
             mem.setUint8(argv_buf + position + data.length, 0);
 
             position += data.length + 1;
-            mem.setUint32(argv + i * 4, argv_buf + position, true);
+            mem.setUint32(argv + (i + 1) * 4, argv_buf + position, true);
           });
         },
       },
