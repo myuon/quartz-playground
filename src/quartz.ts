@@ -6,7 +6,6 @@ const compilerRef = ref(storage, "quartz/quartz-2.3.0.wasm");
 const stdRef = ref(storage, "quartz/std.qz");
 const coreRef = ref(storage, "quartz/core.qz");
 
-// WHY??
 const args = ["quartz", "compile", "-o", "output.wat", "input.qz"];
 let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
