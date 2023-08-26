@@ -8,6 +8,24 @@ let instance = null as unknown as WebAssembly.Instance;
 let stdout = "";
 let stderr = "";
 
+let next_fd = 4;
+let fds = {
+  1: {},
+  2: {},
+  3: {},
+} as Record<
+  number,
+  {
+    dirfd?: number;
+    dirflags?: number;
+    path?: string;
+    oflags?: number;
+    fs_rights_base?: number;
+    fs_rights_inheriting?: number;
+    fs_flags?: number;
+  }
+>;
+
 const getMemoryView = () => {
   return new DataView((instance.exports.memory as WebAssembly.Memory).buffer);
 };
@@ -71,24 +89,76 @@ export const loadQuartz = async (input: string) => {
           fs_flags: number,
           fd: number
         ) {
-          console.log(
-            `[path_open] dirfd=${dirfd} dirflags=${dirflags} path=${path} path_len=${path_len} oflags=${oflags} fs_rights_base=${fs_rights_base} fs_rights_inheriting=${fs_rights_inheriting} fs_flags=${fs_flags} fd=${fd}`
+          const mem = getMemoryView();
+          const filepath = new TextDecoder().decode(
+            new Uint8Array(mem.buffer, path, path_len)
           );
-          throw new Error("todo");
+
+          mem.setInt32(fd, next_fd, true);
+          fds[next_fd] = {
+            dirfd,
+            dirflags,
+            path: filepath,
+            oflags,
+            fs_rights_base,
+            fs_rights_inheriting,
+            fs_flags,
+          };
+          next_fd++;
         },
         fd_close(fd: number) {
           console.log(`[fd_close] fd=${fd}`);
           throw new Error("todo");
         },
         fd_read(fd: number, iovs: number, iovs_len: number, nread: number) {
+          const mem = getMemoryView();
+
           console.log(
             `[fd_read] fd=${fd} iovs=${iovs} iovs_len=${iovs_len} nread=${nread}`
           );
+
+          const address = mem.getUint32(iovs, true);
+          const length = mem.getUint32(iovs + 4, true);
+          console.log(address, length);
           throw new Error("todo");
         },
         fd_filestat_get(fd: number, buf: number) {
-          console.log(`[fd_filestat_get] fd=${fd} buf=${buf}`);
-          throw new Error("todo");
+          const mem = getMemoryView();
+          const stat = fds[fd];
+          if (!stat) {
+            throw new Error(`[fd_filestat_get] fd=${fd} is not found.`);
+          }
+          const fsStat = fs.statSync(stat.path);
+
+          /* According to the document, offset:24 seems to be linkcount, but the actual behavior seems to be different.
+           *
+           * Example:
+           *   quartz/std.qz
+           *    offset=0  I32(0) (0b000000000000000000000000000000 | 0b0)
+           *    offset=8  I32(1032) (0b000000000000000000010000001000 | 0b0)
+           *    offset=16 I32(4) (0b000000000000000000000000000100 | 0b0)
+           *    offset=24 I32(36178) (0b000000000000001000110101010010 | 0b0)
+           */
+          mem.setUint32(buf, 0, true); // device ID
+          mem.setUint32(buf + 8, 0, true); // inode
+          mem.setUint32(buf + 16, 0, true); // file type
+          mem.setUint32(buf + 24, fsStat.size, true); // size
+          // mem.setUint8(buf + 56, 0); // linkcount
+          mem.setBigUint64(
+            buf + 32,
+            BigInt(fsStat.atime.getTime() * 1000),
+            true
+          ); // atim
+          mem.setBigUint64(
+            buf + 40,
+            BigInt(fsStat.mtime.getTime() * 1000),
+            true
+          ); // mtim
+          mem.setBigUint64(
+            buf + 48,
+            BigInt(fsStat.ctime.getTime() * 1000),
+            true
+          ); // ctim
         },
         environ_sizes_get(environ_count: number, environ_buf_size: number) {
           console.log(
