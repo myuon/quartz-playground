@@ -235,7 +235,6 @@ export const loadQuartz = async (input: string) => {
   }
 
   console.log(`compiled`);
-  console.log(`stdout: ${stdout}`);
 
   const compiled = new TextDecoder().decode(
     fs.readFileSync("output.wat") as Uint8Array
