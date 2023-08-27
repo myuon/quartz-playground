@@ -1,6 +1,6 @@
 import styles from "./App.module.css";
 import { useState } from "preact/hooks";
-import { loadQuartz } from "./quartz";
+import { loadQuartz, version } from "./quartz";
 
 const defaultCode = `fun main() {
   println("Hello, world!");
@@ -13,7 +13,7 @@ export const App = () => {
 
   return (
     <main className={styles.main}>
-      <h1>Quartz Playground</h1>
+      <h1>Quartz Playground (v{version})</h1>
 
       <form
         onSubmit={async (event) => {

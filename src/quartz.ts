@@ -2,7 +2,9 @@ import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "./firebase";
 import { fs } from "memfs";
 
-const compilerRef = ref(storage, "quartz/quartz-2.3.0.wasm");
+export const version = "2.3.0";
+
+const compilerRef = ref(storage, `quartz/quartz-${version}.wasm`);
 const stdRef = ref(storage, "quartz/std.qz");
 const coreRef = ref(storage, "quartz/core.qz");
 
